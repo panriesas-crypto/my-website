@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Menu Management • Manager</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <style>
+    body { background:#fff; }
+    .navbar-custom { background:#dc3545; color:#fff; }
+    .navbar-custom .brand { font-weight:800; font-size:1.6rem; color:#fff; text-decoration:none; }
+    .sidebar { background:#fef6e4; min-height:100vh; padding-top:1rem; }
+    .sidebar h6 { color:#c5a880; font-weight:700; margin-bottom:1rem; padding-left:1rem; }
+    .sidebar .nav-link { color:#000; font-weight:600; border-radius:.5rem; margin:.25rem .5rem; }
+    .sidebar .nav-link.active { background:#fde68a; color:#000; }
+    .menu-img { width:80px; height:80px; object-fit:cover; border-radius:10px; }
+  </style>
+</head>
+<body>
+
+<!-- Top Navbar -->
+<nav class="navbar navbar-custom px-3">
+  <a href="#" class="brand">Ran A Han</a>
+  <div class="ms-auto d-flex align-items-center gap-3">
+    <div class="user-info d-flex align-items-center gap-2">
+      <span>Username<br><small class="fw-normal">Manager</small></span>
+      <img src="https://via.placeholder.com/40" alt="User">
+    </div>
+    <button class="btn btn-sm btn-light"><i class="bi bi-bell-fill"></i></button>
+    <button class="btn btn-sm btn-light"><i class="bi bi-gear-fill"></i></button>
+
+    <!-- ปุ่ม Admin -->
+    <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#adminModal">Admin</button>
+
+    <!-- ปุ่ม Logout -->
+    <button id="btnLogout" class="btn btn-sm btn-light">Logout</button>
+  </div>
+</nav>
+
+<div class="container-fluid">
+  <div class="row">
+    <!-- Sidebar -->
+    <div class="col-12 col-md-3 col-lg-2 sidebar">
+      <h6>FEATURES</h6>
+      <nav class="nav flex-column">
+        <a class="nav-link" href="manager_stock.html">Stock</a>
+        <a class="nav-link active" href="manager_menu.html">Menu</a>
+        <a class="nav-link" href="manager_staff.html">Staff</a>
+        <a class="nav-link" href="manager_promotion.html">Promotion</a>
+      </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="col-12 col-md-9 col-lg-10 p-4">
+      <h2 class="mb-4">Menu Management</h2>
+
+      <!-- Buttons -->
+      <div class="d-flex flex-wrap gap-2 mb-3">
+        <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#addModal">Add Menu</button>
+      </div>
+
+      <!-- Menu Table -->
+      <div class="table-responsive">
+        <table class="table table-hover align-middle" id="menuTable">
+          <thead class="table-light">
+            <tr>
+              <th>Image</th>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Description</th>
+              <th>Type</th>
+              <th>Price</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Modal -->
+<div class="modal fade" id="addModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Add Menu</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="addForm">
+        <input type="text" class="form-control mb-2" name="englishName" placeholder="Menu Name" required>
+        <textarea class="form-control mb-2" name="desc" placeholder="Description"></textarea>
+        <select class="form-select mb-2" name="type">
+          <option>Main Dish</option>
+          <option>Beverage</option>
+        </select>
+        <input type="number" class="form-control mb-2" name="price" placeholder="Price" required>
+        <input type="text" class="form-control mb-2" name="image" placeholder="Image URL">
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-danger" id="saveAdd">Save</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Edit Menu</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="editForm">
+        <input type="hidden" name="id">
+        <input type="text" class="form-control mb-2" name="englishName" placeholder="Menu Name" required>
+        <textarea class="form-control mb-2" name="desc" placeholder="Description"></textarea>
+        <select class="form-select mb-2" name="type">
+          <option>Main Dish</option>
+          <option>Beverage</option>
+        </select>
+        <input type="number" class="form-control mb-2" name="price" placeholder="Price" required>
+        <input type="text" class="form-control mb-2" name="image" placeholder="Image URL">
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-warning" id="saveEdit">Update</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- Admin Modal -->
+<div class="modal fade" id="adminModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content p-3">
+      <h5 class="mb-3">Manage Users</h5>
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Role</th>
+            <th>Table No</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="userTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API_BASE = "http://localhost:3000/api";
+
+// -------- MENU ----------
+async function renderMenu(){
+  let res = await fetch(`${API_BASE}/menu`);
+  let menu = await res.json();
+  let tbody = document.querySelector('#menuTable tbody');
+  tbody.innerHTML = '';
+
+  if(menu.length === 0){
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No menu found</td></tr>`;
+    return;
+  }
+
+  menu.forEach(item=>{
+    tbody.innerHTML += `
+      <tr>
+        <td><img src="${item.image || 'https://via.placeholder.com/80'}" class="menu-img"></td>
+        <td>${item.id}</td>
+        <td>${item.englishName}</td>
+        <td>${item.desc||''}</td>
+        <td>${item.type}</td>
+        <td>${item.price} THB</td>
+        <td>
+          <button class="btn btn-warning btn-sm" onclick="openEdit(${item.id})">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteMenu(${item.id})">Delete</button>
+        </td>
+      </tr>`;
+  });
+}
+
+// Add menu
+document.getElementById('saveAdd').addEventListener('click', async ()=>{
+  const form = document.getElementById('addForm');
+  const data = Object.fromEntries(new FormData(form));
+
+  let res = await fetch(`${API_BASE}/menu`, {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify(data)
+  });
+
+  let result = await res.json();
+  if(result.success){
+    await renderMenu();
+    form.reset();
+    bootstrap.Modal.getInstance(document.getElementById('addModal')).hide();
+  }else{
+    alert("Add error: " + (result.error||""));
+  }
+});
+
+// Open edit modal
+async function openEdit(id){
+  let res = await fetch(`${API_BASE}/menu/${id}`);
+  let item = await res.json();
+  let form = document.getElementById('editForm');
+  form.id.value = item.id;
+  form.englishName.value = item.englishName;
+  form.desc.value = item.desc || "";
+  form.type.value = item.type;
+  form.price.value = item.price;
+  form.image.value = item.image || "";
+  new bootstrap.Modal(document.getElementById('editModal')).show();
+}
+
+// Save edit
+document.getElementById('saveEdit').addEventListener('click', async ()=>{
+  const form = document.getElementById('editForm');
+  const data = Object.fromEntries(new FormData(form));
+
+  let res = await fetch(`${API_BASE}/menu/${data.id}`, {
+    method:"PUT",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify(data)
+  });
+
+  let result = await res.json();
+  if(result.success){
+    await renderMenu();
+    bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+  }else{
+    alert("Update error: " + (result.error||""));
+  }
+});
+
+// Delete menu
+async function deleteMenu(id){
+  await fetch(`${API_BASE}/menu/${id}`, { method:"DELETE" });
+  renderMenu();
+}
+
+// -------- USERS (Admin) ----------
+async function renderUsers(){
+  let res = await fetch(`${API_BASE}/users`);
+  let users = await res.json();
+  let tbody = document.getElementById('userTable');
+  tbody.innerHTML = '';
+
+  users.forEach(u=>{
+    tbody.innerHTML += `
+      <tr>
+        <td>${u.username}</td>
+        <td>
+          <select class="form-select form-select-sm" onchange="changeRole(${u.id}, this.value)">
+            <option value="customer" ${u.role==='customer'?'selected':''}>customer</option>
+            <option value="staff" ${u.role==='staff'?'selected':''}>staff</option>
+            <option value="manager" ${u.role==='manager'?'selected':''}>manager</option>
+            <option value="moniter" ${u.role==='moniter'?'selected':''}>moniter</option>
+          </select>
+        </td>
+        <td>
+          ${u.role==='moniter'
+            ? `<input type="text" value="${u.table_no||''}" 
+                     onchange="updateTableNo(${u.id}, this.value)" 
+                     class="form-control form-control-sm" style="width:100px;">`
+            : '-'}
+        </td>
+        <td>
+          <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">Delete</button>
+        </td>
+      </tr>`;
+  });
+}
+
+async function updateTableNo(id, table_no){
+  await fetch(`${API_BASE}/users/${id}/table`, {
+    method:"PUT",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({table_no})
+  });
+}
+
+
+async function changeRole(id,newRole){
+  await fetch(`${API_BASE}/users/${id}/role`, {
+    method:"PUT",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({role:newRole})
+  });
+}
+
+async function deleteUser(id){
+  await fetch(`${API_BASE}/users/${id}`, { method:"DELETE" });
+  renderUsers();
+}
+
+// Logout
+document.getElementById('btnLogout').addEventListener('click', ()=>{
+  sessionStorage.removeItem("ranUser");
+  window.location.href = "index.html";
+});
+
+// Init
+document.addEventListener('DOMContentLoaded', renderMenu);
+document.getElementById('adminModal').addEventListener('show.bs.modal', renderUsers);
+</script>
+</body>
+</html>

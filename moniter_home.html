@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Home • Table Monitor</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <style>
+    body { background:#fff; }
+    .navbar-custom { background:#dc3545; color:#fff; }
+    .navbar-custom .brand { font-weight:800; font-size:1.6rem; color:#fff; text-decoration:none; }
+    .sidebar { background:#fef6e4; min-height:100vh; padding-top:1rem; }
+    .sidebar h6 { color:#c5a880; font-weight:700; margin-bottom:1rem; padding-left:1rem; }
+    .sidebar .nav-link { color:#000; font-weight:600; border-radius:.5rem; margin:.25rem .5rem; }
+    .sidebar .nav-link.active { background:#fde68a; color:#000; }
+    .menu-card img { width:100%; border-radius:1rem; }
+    .menu-card { text-align:center; }
+    .order-btn { margin-top:.5rem; border-radius:1rem; }
+    .cart-box { position:fixed; bottom:0; right:0; background:#fff; border:2px solid #dc3545;
+                border-radius:1rem 1rem 0 0; padding:1rem; width:320px; max-height:60vh;
+                overflow:auto; display:none; }
+    .cart-item { display:flex; justify-content:space-between; align-items:center; margin-bottom:.25rem; }
+    .cart-item button { border:none; background:transparent; color:#dc3545; }
+  </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-custom px-3">
+  <a href="moniter_home.html" class="brand">Ran A Han</a>
+  <div class="ms-auto d-flex align-items-center gap-3">
+    <div id="userBadge" class="text-white"></div>
+    <button class="btn btn-sm btn-light" id="toggleCart" title="Cart">
+      <i class="bi bi-cart4"></i>
+    </button>
+  </div>
+</nav>
+
+<div class="container-fluid">
+  <div class="row">
+    <!-- Sidebar -->
+    <div class="col-12 col-md-3 col-lg-2 sidebar">
+      <h6>FEATURES</h6>
+      <nav class="nav flex-column">
+        <a class="nav-link active" href="moniter_home.html">Menu</a>
+        <a class="nav-link" href="moniter_paybills.html">Pay Bills</a>
+      </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="col-12 col-md-9 col-lg-10 p-4">
+      <h2 class="mb-4">Menu</h2>
+      <div class="row g-4" id="menuList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Cart -->
+<div class="cart-box" id="cartBox">
+  <h5>🛒 Cart</h5>
+  <div id="cartItems"></div>
+  <div class="mt-2 fw-bold">Total: <span id="cartTotal">0</span> THB</div>
+  <button class="btn btn-danger w-100 mt-2" id="btnOrderNow">Order Now</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API_BASE = "http://localhost:3000/api";
+let cart = [];
+
+// --- Auth / User badge ---
+function initUserBadge(){
+  const raw = sessionStorage.getItem("ranUser");
+  if(!raw){
+    alert("Unauthorized!");
+    window.location = "index.html";
+    return null;
+  }
+  const user = JSON.parse(raw);
+  if(user.role !== "moniter"){
+    alert("Unauthorized!");
+    window.location = "index.html";
+    return null;
+  }
+  // แสดง username + table_no
+  const tableNo = user.table_no || "N/A";
+  const badge = document.getElementById("userBadge");
+  badge.innerHTML = `${user.username}<br><span class="fw-normal">Moniter • Table ${tableNo}</span>`;
+  return user;
+}
+
+// --- Load menu ---
+async function loadMenu(){
+  try{
+    const res = await fetch(`${API_BASE}/menu`);
+    const menu = await res.json();
+    const list = document.getElementById("menuList");
+    list.innerHTML = "";
+    menu.forEach(m=>{
+      const safeName = JSON.stringify(m.englishName || "Menu"); // กัน ' แตก
+      const price = Number(m.price) || 0;
+      list.insertAdjacentHTML("beforeend", `
+        <div class="col-12 col-md-4">
+          <div class="menu-card">
+            <img src="${m.image||'https://via.placeholder.com/300x200'}" alt="">
+            <h6 class="mt-2">${m.englishName||'Menu'}</h6>
+            <p>${price} THB</p>
+            <button class="btn btn-danger order-btn"
+              onclick='addToCart(${m.id}, ${safeName}, ${price})'>Add to Cart</button>
+          </div>
+        </div>
+      `);
+    });
+  }catch(e){
+    console.error(e);
+    alert("Cannot load menu.");
+  }
+}
+
+// --- Cart ops ---
+function addToCart(id, name, price){
+  const found = cart.find(i=>i.id===id);
+  if(found){ found.qty++; } else { cart.push({id, name, price, qty:1}); }
+  renderCart();
+}
+function removeFromCart(id){
+  cart = cart.filter(i=>i.id!==id);
+  renderCart();
+}
+function renderCart(){
+  const box = document.getElementById("cartItems");
+  box.innerHTML = "";
+  let total = 0;
+  cart.forEach(i=>{
+    total += i.price * i.qty;
+    box.insertAdjacentHTML("beforeend", `
+      <div class="cart-item">
+        <span>${i.name} x${i.qty}</span>
+        <span>${i.price*i.qty} THB
+          <button onclick="removeFromCart(${i.id})" title="Remove">
+            <i class="bi bi-trash"></i>
+          </button>
+        </span>
+      </div>
+    `);
+  });
+  document.getElementById("cartTotal").textContent = total;
+}
+
+// --- Submit order ---
+async function submitOrder(user){
+  if(cart.length===0){ alert("Cart is empty!"); return; }
+  const total = cart.reduce((s,i)=>s+i.price*i.qty, 0);
+  const payload = { table_no: user.table_no, items: cart, total };
+  try{
+    const res = await fetch(`${API_BASE}/orders`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
+    });
+    const r = await res.json();
+    if(r.success){
+      alert("✅ Order Success! ID="+r.orderId);
+      cart = [];
+      renderCart();
+      toggleCartBox(false);
+    }else{
+      alert("❌ Order failed: "+(r.error||""));
+    }
+  }catch(e){
+    console.error(e);
+    alert("❌ Order failed.");
+  }
+}
+
+// --- Cart toggle ---
+function toggleCartBox(force){
+  const box = document.getElementById("cartBox");
+  if(force === false){ box.style.display = "none"; return; }
+  box.style.display = (box.style.display === "none" || !box.style.display) ? "block" : "none";
+}
+
+// --- Init ---
+document.addEventListener("DOMContentLoaded", async ()=>{
+  const user = initUserBadge();
+  if(!user) return;
+  await loadMenu();
+
+  // toggle cart button
+  document.getElementById("toggleCart").addEventListener("click", ()=>toggleCartBox());
+
+  // order now
+  document.getElementById("btnOrderNow").addEventListener("click", ()=>submitOrder(user));
+
+  // logout
+  document.getElementById("btnLogout").addEventListener("click", ()=>{
+    sessionStorage.removeItem("ranUser");
+    window.location = "index.html";
+  });
+});
+</script>
+</body>
+</html>

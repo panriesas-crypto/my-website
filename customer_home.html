@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Menu • Customer</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" />
+  <style>
+    body { background: #fff; }
+    .navbar-custom { background: #dc3545; color: #fff; }
+    .navbar-custom .brand { font-weight: 800; font-size: 1.6rem; color: #fff; text-decoration: none; }
+    .sidebar { background: #fef6e4; min-height: 100vh; padding-top: 1rem; }
+    .sidebar h6 { color: #c5a880; font-weight: 700; margin-bottom: 1rem; padding-left: 1rem; }
+    .sidebar .nav-link { color: #000; font-weight: 600; border-radius: .5rem; margin: .25rem .5rem; }
+    .sidebar .nav-link.active { background: #fde68a; color: #000; }
+
+    .icon-btn { background: transparent; border: none; color: #fff; font-size: 1.25rem; }
+    .card-menu { border-radius: .75rem; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,.08); transition: transform .2s ease; }
+    .card-menu:hover { transform: scale(1.02); }
+    .card-menu img { width: 100%; height: 180px; object-fit: cover; }
+    .card-body { padding: 1rem; }
+    .price { font-weight: 800; font-size: 1.25rem; text-align: right; }
+
+    .badge-type { background: #eee; color: #333; font-weight: 600; }
+
+    @media (max-width: 576px) {
+      .navbar-custom .brand { font-size: 1.2rem; }
+      .price { font-size: 1rem; text-align: left; }
+      .card-body { padding: .75rem; }
+    }
+  </style>
+
+  <!-- Define SERVER_ORIGIN *before* any scripts use it -->
+  <script>
+    // Resolve backend origin. Use existing global if set; otherwise try same origin
+    // (when serving files via Express static "."), else default to localhost:3000.
+    window.SERVER_ORIGIN = window.SERVER_ORIGIN || (
+      location.origin.includes(":3000") ? location.origin : "http://localhost:3000"
+    );
+  </script>
+</head>
+<body>
+
+<!-- Top Navbar -->
+<nav class="navbar navbar-custom px-3">
+  <a href="customer_home.html" class="brand">Ran A Han</a>
+  <div class="ms-auto d-flex align-items-center gap-3">
+    <div id="lastUpdated" class="text-light small d-none"></div>
+    <button id="btnRefresh" class="btn btn-sm btn-light"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+    <button class="icon-btn" title="Notifications"><i class="bi bi-bell-fill"></i></button>
+    <button class="icon-btn" title="Settings"><i class="bi bi-gear-fill"></i></button>
+  </div>
+</nav>
+
+<div class="container-fluid">
+  <div class="row">
+    <!-- Sidebar (FEATURES) -->
+    <div class="col-12 col-md-3 col-lg-2 sidebar mb-3 mb-md-0 order-last order-md-first">
+      <h6>FEATURES</h6>
+      <nav class="nav flex-column">
+        <a class="nav-link active" href="customer_home.html">Menu</a>
+        <a class="nav-link" href="customer_booking.html">Booking</a>
+        <a class="nav-link" href="customer_mybooking.html">My Booking</a>
+      </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="col-12 col-md-9 col-lg-10 p-3 p-md-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h2 class="mb-0">Menu</h2>
+        <div id="loading" class="text-muted small d-none"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</div>
+      </div>
+      <div class="row g-4" id="menuContainer">
+        <!-- JS will render fresh menu from /api/menu -->
+      </div>
+      <div id="emptyState" class="text-center text-muted py-5 d-none">
+        <i class="bi bi-emoji-frown" style="font-size:2rem;"></i>
+        <p class="mt-2 mb-0">No menu items found.</p>
+        <small>Ask staff to add menu items in the system.</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// --- State & helpers ---
+const PLACEHOLDER_IMG = 'https://via.placeholder.com/400x220';
+let latestMenu = [];
+
+function normalizeMenu(rows){
+  return (rows || []).map(r => ({
+    id: r.id ?? r.ID ?? undefined,
+    name: r.englishName || r.name || '',
+    desc: r.desc || r.type || '',
+    type: r.type || '',
+    price: Number(r.price || 0),
+    image: r.image || PLACEHOLDER_IMG
+  }));
+}
+
+function setLastUpdated(ts){
+  const el = document.getElementById('lastUpdated');
+  el.textContent = `Updated: ${new Date(ts).toLocaleString()}`;
+  el.classList.remove('d-none');
+}
+
+function setLoading(on){
+  document.getElementById('loading').classList.toggle('d-none', !on);
+}
+
+function renderMenu(items){
+  const container = document.getElementById('menuContainer');
+  const empty = document.getElementById('emptyState');
+  container.innerHTML = '';
+  if(!items || items.length === 0){
+    empty.classList.remove('d-none');
+    return;
+  }
+  empty.classList.add('d-none');
+
+  items.forEach(it => {
+    container.insertAdjacentHTML('beforeend', `
+      <div class="col-12 col-sm-6 col-lg-4">
+        <div class="card card-menu h-100">
+          <img src="${it.image}" alt="${it.name}" loading="lazy" />
+          <div class="card-body d-flex flex-column">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <h5 class="card-title mb-0">${it.name}</h5>
+              ${it.type ? `<span class="badge badge-type ms-2">${it.type}</span>` : ''}
+            </div>
+            <p class="card-text flex-grow-1">${it.desc || ''}</p>
+            <div class="price">${Number(it.price).toLocaleString()} THB</div>
+          </div>
+        </div>
+      </div>
+    `);
+  });
+}
+
+async function fetchFromAPI(){
+  const url = `${window.SERVER_ORIGIN}/api/menu`;
+  const resp = await fetch(url, { cache: 'no-store' });
+  if(!resp.ok) throw new Error(`GET ${url} -> ${resp.status}`);
+  const rows = await resp.json();
+  return normalizeMenu(rows);
+}
+
+async function fallbackFromSeed(){
+  const url = `${window.SERVER_ORIGIN}/seed.sql?ts=${Date.now()}`;
+  const txt = await fetch(url, { cache: 'no-store' }).then(r => r.text());
+  const m = txt.match(/INSERT\s+INTO\s+menu\s*\(([^)]+)\)\s*VALUES\s*((?:\([^;]+\))+);/i);
+  if(!m) return [];
+  const cols = m[1].split(',').map(s => s.trim().replace(/[`"' ]/g, ''));
+  const tuplesRaw = m[2];
+  const tuples = [];
+  let depth = 0, buf = '';
+  for (let ch of tuplesRaw){
+    if (ch === '(') depth++;
+    if (depth > 0) buf += ch;
+    if (ch === ')'){
+      depth--;
+      if (depth === 0){ tuples.push(buf); buf = ''; }
+    }
+  }
+  function splitCSVRespectQuotes(s){
+    const out = []; let cur = '', inStr = false, q = '', prev = '';
+    for (const c of s){
+      if(inStr){ cur += c; if (c === q && prev !== '\\') inStr = false; }
+      else {
+        if (c === "'" || c === '"'){ inStr = true; q = c; cur += c; }
+        else if (c === ','){ out.push(cur.trim()); cur = ''; }
+        else { cur += c; }
+      }
+      prev = c;
+    }
+    if(cur.trim() !== '') out.push(cur.trim());
+    return out;
+  }
+  const rows = tuples.map(t => {
+    const inner = t.slice(1, -1);
+    const parts = splitCSVRespectQuotes(inner).map(x => x.replace(/^'(.*)'$/, '$1').replace(/^"(.*)"$/, '$1'));
+    const row = {}; cols.forEach((c, i) => row[c] = parts[i]);
+    return { id: undefined, name: row.englishName || '', desc: row.desc || row.type || '', type: row.type || '', price: Number(row.price || 0), image: row.image || PLACEHOLDER_IMG };
+  });
+  return rows;
+}
+
+async function loadAndRenderMenu(){
+  setLoading(true);
+  try{
+    latestMenu = await fetchFromAPI();
+    localStorage.setItem('menu', JSON.stringify(latestMenu)); // cache for quick reopen
+  }catch(e){
+    console.warn('[menu] API failed, fallback to cache/seed:', e);
+    const cache = localStorage.getItem('menu');
+    if (cache){
+      try{ latestMenu = JSON.parse(cache) || []; }catch{ latestMenu = []; }
+    }
+    if (!latestMenu || latestMenu.length === 0){
+      try{ latestMenu = await fallbackFromSeed(); }
+      catch(err){ console.error('seed fallback failed:', err); latestMenu = []; }
+    }
+  }finally{
+    renderMenu(latestMenu);
+    setLoading(false);
+    setLastUpdated(Date.now());
+  }
+}
+
+// Listen to changes from other tabs/windows
+window.addEventListener('storage', (e) => {
+  if (e.key === 'menu' && e.newValue){
+    try { latestMenu = JSON.parse(e.newValue) || []; renderMenu(latestMenu); setLastUpdated(Date.now()); } catch {}
+  }
+});
+
+// Manual refresh
+addEventListener('DOMContentLoaded', () => {
+  document.getElementById('btnRefresh').addEventListener('click', loadAndRenderMenu);
+  loadAndRenderMenu();
+  // Optional: auto-refresh every 60s (adjust as needed)
+  // setInterval(loadAndRenderMenu, 60000);
+});
+</script>
+
+<!-- auth script (unchanged) -->
+<script>
+(function(){
+  const user = localStorage.getItem('ranUser') || sessionStorage.getItem('ranUser');
+  if(user){
+    const nav = document.querySelector('.navbar .ms-auto');
+    if(nav && !document.getElementById('ranUserBadge')){
+      const span = document.createElement('div');
+      span.id='ranUserBadge';
+      span.className='d-flex align-items-center gap-2';
+      span.innerHTML = `<button id="btnLogout" class="btn btn-sm btn-light">Logout</button>`;
+      nav.prepend(span);
+
+      document.getElementById('btnLogout').addEventListener('click', ()=>{
+        localStorage.removeItem('ranUser');
+        sessionStorage.removeItem('ranUser');
+        window.location.href='index.html';
+      });
+    }
+  }
+})();
+</script>
+
+</body>
+</html>
