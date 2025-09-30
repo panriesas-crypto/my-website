@@ -1,0 +1,12 @@
+
+=== Upload Map ===
+
+- Vercel (Frontend):  ranahan-frontend-vercel.zip
+  Purpose: Static HTML site with `vercel.json` rewrite to your Render backend.
+  Action: After deploy, edit vercel.json 'destination' to your Render URL and redeploy (or update before uploading).
+
+- Render (Backend):   ranahan-backend-render.zip
+  Purpose: Node/Express service. Add env variables (CORS_ORIGIN, DATABASE_URL) and deploy as a Web Service.
+
+- Neon (Database):    ranahan-neon-sql.zip
+  Purpose: PostgreSQL schema + seed scripts. Run in Neon SQL editor, then copy connection string to Render env.
