@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Staff • Payment</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" />
+  <style>
+    body { background:#fff; }
+    .navbar-custom { background:#dc3545; color:#fff; }
+    .navbar-custom .brand { font-weight:800; font-size:1.6rem; color:#fff; text-decoration:none; }
+    .sidebar { background:#fef6e4; min-height:100vh; padding-top:1rem; }
+    .sidebar h6 { color:#c5a880; font-weight:700; margin-bottom:1rem; padding-left:1rem; }
+    .sidebar .nav-link { color:#000; font-weight:600; border-radius:.5rem; margin:.25rem .5rem; }
+    .sidebar .nav-link.active { background:#fde68a; color:#000; }
+    .user-info { display:flex; align-items:center; gap:.5rem; color:#fff; font-weight:700; }
+    .user-info img { width:40px; height:40px; border-radius:50%; object-fit:cover; }
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-custom px-3">
+  <a href="#" class="brand">Ran A Han</a>
+  <div class="ms-auto d-flex align-items-center gap-3">
+    <div class="user-info">
+      <span>Username<br><small class="fw-normal">Staff</small></span>
+      <img src="https://via.placeholder.com/40" alt="User">
+    </div>
+    <button class="btn btn-sm btn-light"><i class="bi bi-bell-fill"></i></button>
+    <button class="btn btn-sm btn-light"><i class="bi bi-gear-fill"></i></button>
+    <!-- ✅ Logout button (ขวาสุด) -->
+    <button id="btnLogout" class="btn btn-sm btn-light">Logout</button>
+  </div>
+</nav>
+
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12 col-md-3 col-lg-2 sidebar">
+      <h6>FEATURES</h6>
+      <nav class="nav flex-column">
+        <a class="nav-link" href="staff_stock.html">Stock</a>
+        <a class="nav-link" href="staff_order.html">Order</a>
+        <a class="nav-link" href="staff_tablestatus.html">TableStatus</a>
+        <a class="nav-link active" href="staff_payment.html">Payment</a>
+      </nav>
+    </div>
+
+    <div class="col-12 col-md-9 col-lg-10 p-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h2 class="mb-0">Payment History</h2>
+        <button id="btnRefresh" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle" id="payTable">
+          <thead class="table-light">
+            <tr>
+              <th>Table</th>
+              <th>Order ID</th>
+              <th class="text-end">Subtotal</th>
+              <th class="text-end">VAT 7%</th>
+              <th class="text-end">Total</th>
+              <th>Method</th>
+              <th>Paid at</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="payTbody">
+            <tr><td colspan="8" class="text-muted text-center">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content p-4">
+      <h5 class="fw-bold mb-3" id="detailTitle">Table : - | 0 item</h5>
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th class="text-center" style="width:120px;">Qty</th>
+              <th class="text-end" style="width:140px;">Amount</th>
+            </tr>
+          </thead>
+          <tbody id="detailBody"></tbody>
+        </table>
+      </div>
+      <div class="d-flex justify-content-end">
+        <table>
+          <tr><td class="pe-3">Vat 7%</td><td id="detailVat">0.00</td></tr>
+          <tr><td class="pe-3">Total</td><td id="detailTotal">0.00</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = "http://localhost:3000/api";
+function money(n){ return Number(n||0).toFixed(2); }
+
+async function loadPayments(){
+  const tbody = document.getElementById('payTbody');
+  tbody.innerHTML = `<tr><td colspan="8" class="text-muted text-center">Loading...</td></tr>`;
+  try{
+    const r = await fetch(`${API_BASE}/payments`, { cache:'no-store' });
+    if(!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+    const ct = (r.headers.get('content-type')||'').toLowerCase();
+    if(!ct.includes('application/json')){
+      const t = await r.text(); throw new Error('Not JSON: '+t.slice(0,80));
+    }
+    const rows = await r.json();
+
+    if(!rows.length){
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">No payment history</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = '';
+    rows.forEach(p=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>#${p.table_no}</td>
+        <td>#${p.order_id ?? '-'}</td>
+        <td class="text-end">${money(p.subtotal)}</td>
+        <td class="text-end">${money(p.vat)}</td>
+        <td class="text-end">${money(p.total)}</td>
+        <td>${(p.method||'').toUpperCase()}</td>
+        <td>${p.paid_at || '-'}</td>
+        <td><button class="btn btn-dark btn-sm" data-detail="${p.id}">Detail</button></td>
+      `;
+      tr.querySelector('[data-detail]').addEventListener('click', ()=>{
+        showDetail(p);
+      });
+      tbody.appendChild(tr);
+    });
+
+  }catch(err){
+    console.error(err);
+    tbody.innerHTML = `<tr><td colspan="8" class="text-danger text-center">Error: ${err.message}</td></tr>`;
+  }
+}
+
+function showDetail(p){
+  const items = Array.isArray(p.items) ? p.items : [];
+  const title = document.getElementById('detailTitle');
+  const body = document.getElementById('detailBody');
+  const vatEl = document.getElementById('detailVat');
+  const totalEl = document.getElementById('detailTotal');
+
+  const totalQty = items.reduce((s,i)=> s + Number(i.qty||0), 0);
+  title.textContent = `Table : ${p.table_no} | ${totalQty} item`;
+
+  body.innerHTML = items.map(it => `
+    <tr>
+      <td>${it.name}</td>
+      <td class="text-center">${it.qty}</td>
+      <td class="text-end">${money(Number(it.price||0)*Number(it.qty||0))}</td>
+    </tr>
+  `).join('');
+
+  vatEl.textContent = money(p.vat);
+  totalEl.textContent = money(p.total);
+
+  new bootstrap.Modal(document.getElementById('detailModal')).show();
+}
+
+// ✅ Logout handler
+document.addEventListener('click', (e)=>{
+  if(e.target && e.target.id === 'btnLogout'){
+    // ล้างได้ทั้งสองแบบ เผื่อหน้าอื่นใช้ต่างกัน
+    sessionStorage.removeItem('ranUser');
+    localStorage.removeItem('ranUser');
+    window.location.href = 'index.html';
+  }
+});
+
+document.getElementById('btnRefresh').addEventListener('click', loadPayments);
+document.addEventListener('DOMContentLoaded', loadPayments);
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

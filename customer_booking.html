@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Booking • Customer</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <style>
+    body { background:#fff; }
+    .navbar-custom { background:#dc3545; color:#fff; }
+    .navbar-custom .brand { font-weight:800; font-size:1.6rem; color:#fff; text-decoration:none; }
+    .sidebar { background:#fef6e4; min-height:100vh; padding-top:1rem; }
+    .sidebar h6 { color:#c5a880; font-weight:700; margin-bottom:1rem; padding-left:1rem; }
+    .sidebar .nav-link { color:#000; font-weight:600; border-radius:.5rem; margin:.25rem .5rem; }
+    .sidebar .nav-link.active { background:#fde68a; color:#000; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-custom px-3">
+  <a href="customer_home.html" class="brand">Ran A Han</a>
+  <div class="ms-auto d-flex align-items-center gap-3" id="navRight"></div>
+</nav>
+
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12 col-md-3 col-lg-2 sidebar">
+      <h6>FEATURES</h6>
+      <nav class="nav flex-column">
+        <a class="nav-link " href="customer_home.html">Menu</a>
+        <a class="nav-link active" href="customer_booking.html">Booking</a>
+        <a class="nav-link " href="customer_mybooking.html">My Booking</a>
+      </nav>
+    </div>
+
+    <div class="col-12 col-md-9 col-lg-10 p-4">
+      <h2 class="mb-4">Booking</h2>
+
+      <form id="bookingForm" class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Date <span class="text-danger">*</span></label>
+          <input id="dateInput" type="date" class="form-control" name="date" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Time <span class="text-danger">*</span></label>
+          <input id="timeInput" type="time" class="form-control" name="time" required>
+          <div id="timeHint" class="form-text"></div>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Number of Customers <span class="text-danger">*</span></label>
+          <input type="number" class="form-control" name="people" min="1" max="6" required>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Select Table <span class="text-danger">*</span></label>
+          <select class="form-select" name="tableId" id="tableSelect" required>
+            <option value="">-- Select Available Table --</option>
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Comments <small class="text-muted">(Optional)</small></label>
+          <textarea class="form-control" name="comment" rows="3"></textarea>
+        </div>
+        <div class="col-12">
+          <button id="submitBtn" type="submit" class="btn btn-danger w-100 py-2 fw-bold" style="border-radius:2rem;">Book a table</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// ===== CONFIG: เปลี่ยนให้ตรงกับที่รัน backend
+const SERVER_ORIGIN = 'http://localhost:3000';
+
+// เปิด-ปิดร้าน
+const OPEN_TIME = "10:00";
+const CLOSE_TIME = "22:00";
+
+// ฟังก์ชันช่วย
+const pad2 = n => String(n).padStart(2, '0');
+function toDateStr(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+function toTimeStr(d){ return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; }
+function addMinutes(d, mins){ const x=new Date(d); x.setMinutes(x.getMinutes()+mins); return x; }
+function makeDateTime(dateStr, timeStr){
+  const [y,m,dd] = dateStr.split('-').map(Number);
+  const [hh,mm]  = timeStr.split(':').map(Number);
+  return new Date(y, m-1, dd, hh, mm, 0, 0);
+}
+
+// ===== ตั้ง min ของวันที่ และกำหนด min/max ของเวลาแบบไดนามิก =====
+function updateConstraints(){
+  const dateInput = document.getElementById('dateInput');
+  const timeInput = document.getElementById('timeInput');
+  const timeHint  = document.getElementById('timeHint');
+  const submitBtn = document.getElementById('submitBtn');
+
+  const now = new Date(); // เวลาเครื่อง
+  const todayStr = toDateStr(now);
+
+  // set min date = วันนี้
+  dateInput.min = todayStr;
+  if (!dateInput.value || dateInput.value < todayStr) {
+    dateInput.value = todayStr;
+  }
+
+  // เก็บค่าเวลาเดิมไว้ก่อนอัปเดต constraint
+  const prevTime = timeInput.value;
+
+  const OPEN = OPEN_TIME;
+  const CLOSE = CLOSE_TIME;
+  let minTime = OPEN;
+  let maxTime = CLOSE;
+
+  if (dateInput.value === todayStr) {
+    const t5 = toTimeStr(addMinutes(now, 5)); // ตอนนี้ + 5 นาที
+    minTime = (t5 > OPEN) ? t5 : OPEN;
+
+    // วันนี้ถ้าเกินเวลาปิดแล้ว → ให้ไปเลือกวันถัดไป
+    if (toTimeStr(now) >= CLOSE) {
+      timeInput.min = OPEN;
+      timeInput.max = CLOSE;
+      timeInput.value = ""; // วันนี้เลือกไม่ได้แล้ว
+      timeHint.innerText = "We're close today, Please select the next day.";
+      submitBtn.disabled = true;
+      return;
+    }
+  } else {
+    minTime = OPEN;
+  }
+
+  // อัปเดต constraint ของ time
+  timeInput.min = minTime;
+  timeInput.max = maxTime;
+  timeHint.innerText = `Open ${OPEN_TIME} – ${CLOSE_TIME}`;
+  submitBtn.disabled = false;
+
+  // ถ้าค่าเดิมยังอยู่ในช่วง → คงค่าไว้ ไม่ทับ
+  if (prevTime && prevTime >= timeInput.min && prevTime <= timeInput.max) {
+    timeInput.value = prevTime;
+  } else {
+    // ถ้าไม่อยู่ในช่วง → ตั้งให้เป็นเวลาขั้นต่ำที่จองได้
+    timeInput.value = minTime;
+  }
+}
+
+// ===== โหลดโต๊ะว่าง =====
+async function renderAvailableTables(){
+  const select = document.getElementById('tableSelect');
+  select.innerHTML = '<option value="">-- Select Available Table --</option>';
+  try {
+    const resp = await fetch(`${SERVER_ORIGIN}/api/tables`);
+    const tables = await resp.json();
+    tables.forEach(t=>{
+      if(t.status === 'Available'){
+        select.innerHTML += `<option value="${t.id}">Table ${t.id} (Seats: ${t.seats})</option>`;
+      }
+    });
+  } catch(e){
+    console.error('Fetch tables failed', e);
+    alert('Cannot load tables from server.');
+  }
+}
+
+// ===== ส่งฟอร์มจอง =====
+document.getElementById('bookingForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const data = new FormData(e.target);
+  const booking = {
+    date: data.get('date'),
+    time: data.get('time'),
+    people: parseInt(data.get('people') || '0', 10),
+    tableId: parseInt(data.get('tableId') || '0', 10),
+    comment: data.get('comment') || ''
+  };
+
+  // userId จาก localStorage/sessionStorage (อาจเป็น username เช่น 'customer1')
+  const userId = localStorage.getItem('ranUser') || sessionStorage.getItem('ranUser') || 'guest';
+
+  // Validate เบื้องต้น
+  if (!booking.date || !booking.time || !booking.people || !booking.tableId) {
+    alert('Please fill all required fields.');
+    return;
+  }
+  if (booking.people < 1 || booking.people > 6) {
+    alert('A table can seat 1-6 people.');
+    return;
+  }
+  if (booking.time < OPEN_TIME || booking.time > CLOSE_TIME) {
+    alert(`Booking time must be between ${OPEN_TIME} and ${CLOSE_TIME}.`);
+    return;
+  }
+
+  // Validate ไม่ย้อนหลัง (date+time ≥ now)
+  const now = new Date();
+  const selected = makeDateTime(booking.date, booking.time);
+  if (selected < now) {
+    alert('Cannot book in the past. Please choose a future date/time.');
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${SERVER_ORIGIN}/api/bookings`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ userId, ...booking })
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(()=>({}));
+      alert('Booking failed: ' + (err.error || resp.status));
+      return;
+    }
+    alert('Booking successful!');
+    window.location.href = 'customer_mybooking.html';
+  } catch(e2){
+    console.error('Create booking failed', e2);
+    alert('Network error while booking.');
+  }
+});
+
+// ===== auth: ปุ่ม logout
+(function(){
+  const user = localStorage.getItem('ranUser');
+  if(user){
+    const nav = document.getElementById('navRight');
+    const btn = document.createElement('button');
+    btn.className="btn btn-sm btn-light";
+    btn.innerText="Logout";
+    btn.onclick=()=>{ localStorage.removeItem('ranUser'); window.location.href="index.html"; };
+    nav.appendChild(btn);
+  }
+})();
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  // คำนวณ constraint ครั้งแรก
+  updateConstraints();
+
+  // เรียก updateConstraints เฉพาะตอน "วัน" เปลี่ยน
+  document.getElementById('dateInput').addEventListener('change', updateConstraints);
+
+  // ❌ ไม่ต้องเรียกตอน time เปลี่ยน เพื่อไม่ทับค่าที่ผู้ใช้เลือก
+  // document.getElementById('timeInput').addEventListener('change', updateConstraints);
+
+  // โหลดโต๊ะว่าง
+  renderAvailableTables();
+});
+</script>
+
+<script>
+  // Refresh เมื่อกลับมาที่แท็บ/หน้าต่างนี้
+  function refreshOnReturn() {
+    if (!document.hidden) {
+      window.location.reload();
+    }
+  }
+  document.addEventListener('visibilitychange', refreshOnReturn);
+  window.addEventListener('focus', refreshOnReturn);
+  // กันกรณีหน้าโดนแคชไว้ (bfcache) แล้วถูกเรียกคืน
+  window.addEventListener('pageshow', function (e) {
+    if (e.persisted) window.location.reload();
+  });
+</script>
+
+
+
+</body>
+</html>
