@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stock • Staff</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <style>
+    body { background:#fff; }
+    .navbar-custom { background:#dc3545; color:#fff; }
+    .navbar-custom .brand { font-weight:800; font-size:1.6rem; color:#fff; text-decoration:none; }
+    .sidebar { background:#fef6e4; min-height:100vh; padding-top:1rem; }
+    .sidebar h6 { color:#c5a880; font-weight:700; margin-bottom:1rem; padding-left:1rem; }
+    .sidebar .nav-link { color:#000; font-weight:600; border-radius:.5rem; margin:.25rem .5rem; }
+    .sidebar .nav-link.active { background:#fde68a; color:#000; }
+    .status-badge { border-radius:1rem; padding:.2rem .7rem; font-weight:bold; }
+    .status-high { background:#d4edda; color:#155724; }
+    .status-low  { background:#f8d7da; color:#721c24; }
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-custom px-3">
+  <a href="#" class="brand">Ran A Han</a>
+  <div class="ms-auto d-flex align-items-center gap-3">
+    <div class="user-info d-flex align-items-center gap-2">
+      <span>Username<br><small class="fw-normal">Staff</small></span>
+      <img src="https://via.placeholder.com/40" alt="User">
+    </div>
+    <button class="btn btn-sm btn-light"><i class="bi bi-bell-fill"></i></button>
+    <button class="btn btn-sm btn-light"><i class="bi bi-gear-fill"></i></button>
+  </div>
+</nav>
+
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12 col-md-3 col-lg-2 sidebar">
+      <h6>FEATURES</h6>
+      <nav class="nav flex-column">
+        <a class="nav-link active" href="staff_stock.html">Stock</a>
+        <a class="nav-link" href="staff_order.html">Order</a>
+        <a class="nav-link" href="staff_tablestatus.html">TableStatus</a>
+        <a class="nav-link" href="staff_payment.html">Payment</a>
+      </nav>
+    </div>
+
+    <div class="col-12 col-md-9 col-lg-10 p-4">
+      <h2 class="mb-4">Stock Management (View Only)</h2>
+      <input type="text" id="searchBox" class="form-control mb-3" placeholder="Search...">
+      <div class="table-responsive">
+        <table class="table table-hover" id="stockTable">
+          <thead>
+            <tr>
+              <th>Order ID</th>
+              <th>Product</th>
+              <th>Amount</th>
+              <th>Sales Channel</th>
+              <th>Remaining (%)</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- renderStock() จะเติมข้อมูลตรงนี้ -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // === CONFIG: ชี้ไปที่ backend ที่รัน server.js ของคุณ ===
+  const SERVER_ORIGIN = 'http://localhost:3000';
+</script>
+
+<script>
+  // === เปลี่ยนจาก localStorage -> ดึงจาก API /api/stock (ฝั่ง server.js มี endpoint นี้แล้ว) ===
+  async function fetchStock(){
+    const r = await fetch(`${SERVER_ORIGIN}/api/stock`, { headers: { 'Accept':'application/json' }});
+    if(!r.ok) throw new Error('Cannot load stock from server');
+    return await r.json();
+  }
+
+  function filterStock(list, q){
+    if(!q) return list;
+    q = q.toLowerCase();
+    return list.filter(x =>
+      String(x.orderId||'').toLowerCase().includes(q) ||
+      String(x.product||'').toLowerCase().includes(q) ||
+      String(x.amount||'').toLowerCase().includes(q) ||
+      String(x.remaining||'').toLowerCase().includes(q) ||
+      String(x.status||'').toLowerCase().includes(q)
+    );
+  }
+
+  async function renderStock(){
+    const tbody = document.querySelector('#stockTable tbody');
+    const searchBox = document.getElementById('searchBox');
+
+    tbody.innerHTML = `<tr><td colspan="6" class="text-muted">Loading...</td></tr>`;
+    try{
+      const data = await fetchStock();
+      const apply = ()=>{
+        const q = searchBox.value.trim();
+        const stock = filterStock(data, q);
+        tbody.innerHTML = '';
+        if(stock.length === 0){
+          tbody.innerHTML = `<tr><td colspan="6" class="text-muted">No data</td></tr>`;
+          return;
+        }
+        stock.forEach(item=>{
+          const remaining = Number(item.remaining ?? 0);
+          const statusText = remaining < 20 ? 'Low' : 'High';
+          const statusClass = remaining < 20 ? 'status-low' : 'status-high';
+          tbody.innerHTML += `
+            <tr>
+              <td>${item.orderId ?? ''}</td>
+              <td>${item.product ?? ''}</td>
+              <td>${item.amount ?? ''}</td>
+              <td>${item.salesChannel ?? ""}</td>
+              <td>${remaining}</td>
+              <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+            </tr>`;
+        });
+      };
+      apply();
+      searchBox.oninput = apply;
+    }catch(e){
+      console.error(e);
+      tbody.innerHTML = `<tr><td colspan="6" class="text-danger">Failed to load stock.</td></tr>`;
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', renderStock);
+
+  // Auto-highlight active link
+  const currentPage = window.location.pathname.split("/").pop();
+  document.querySelectorAll(".sidebar .nav-link").forEach(link => {
+    if (link.getAttribute("href") === currentPage) {
+      link.classList.add("active");
+    }
+  });
+</script>
+
+<!-- auth script: เช็ค role + logout -->
+<script>
+(function(){
+  var nav = document.querySelector('.navbar .ms-auto');
+  if(nav && !document.getElementById('ranUserBadge')){
+    const span = document.createElement('div');
+    span.id='ranUserBadge';
+    span.className='d-flex align-items-center gap-2';
+    span.innerHTML = '<button id="btnLogout" class="btn btn-sm btn-light">Logout</button>';
+    nav.prepend(span);
+    document.getElementById('btnLogout').addEventListener('click', ()=>{
+      localStorage.removeItem('ranUser');
+      window.location.href='index.html';
+    });
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Order</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <style>
+    body { background:#fff; }
+    .navbar-custom { background:#dc3545; color:#fff; }
+    .navbar-custom .brand { font-weight:800; font-size:1.6rem; color:#fff; text-decoration:none; }
+    .sidebar { background:#fef6e4; min-height:100vh; padding-top:1rem; }
+    .sidebar h6 { color:#c5a880; font-weight:700; margin-bottom:1rem; padding-left:1rem; }
+    .sidebar .nav-link { color:#000; font-weight:600; border-radius:.5rem; margin:.25rem .5rem; }
+    .sidebar .nav-link.active { background:#fde68a; color:#000; }
+    .user-info img { width:40px; height:40px; border-radius:50%; object-fit:cover; }
+    .order-box { background:#fff6eb; border-radius:1rem; padding:1rem 1.5rem; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-custom px-3">
+  <a href="#" class="brand">Ran A Han</a>
+  <div class="ms-auto d-flex align-items-center gap-3">
+    <div class="user-info d-flex align-items-center gap-2">
+      <span>Username<br><small class="fw-normal">Staff</small></span>
+      <img src="https://via.placeholder.com/40" alt="User">
+    </div>
+    <button class="btn btn-sm btn-light"><i class="bi bi-bell-fill"></i></button>
+    <button class="btn btn-sm btn-light"><i class="bi bi-gear-fill"></i></button>
+    <!-- ✅ Added: Logout button (rightmost) -->
+    <button id="btnLogoutTop" class="btn btn-sm btn-light">Logout</button>
+  </div>
+</nav>
+
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12 col-md-3 col-lg-2 sidebar">
+      <h6>FEATURES</h6>
+      <nav class="nav flex-column">
+        <a class="nav-link" href="staff_stock.html">Stock</a>
+        <a class="nav-link active" href="staff_order.html">Order</a>
+        <a class="nav-link" href="staff_tablestatus.html">TableStatus</a>
+        <a class="nav-link" href="staff_payment.html">Payment</a>
+      </nav>
+    </div>
+    <div class="col-12 col-md-9 col-lg-10 p-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h2 class="mb-0">Order</h2>
+        <div class="d-flex gap-2">
+          <button id="btnRefresh" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+          </button>
+        </div>
+      </div>
+
+      <!-- จะเติมรายการออเดอร์ด้วย JS -->
+      <div class="order-list d-flex flex-column gap-3"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API_BASE = "http://localhost:3000/api";
+const ORDERS_LIST_URL = `${API_BASE}/orders/list`;
+const ORDER_ITEMS_URL = (id)=> `${API_BASE}/orders/${id}/items`;
+const ORDER_STATUS_URL = (id)=> `${API_BASE}/orders/${id}/status`;
+const ORDER_DELETE_URL = (id)=> `${API_BASE}/orders/${id}`; // <-- ใช้ลบออเดอร์
+
+async function safeJson(res){
+  const ct = res.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) {
+    const text = await res.text();
+    throw new Error(`Not JSON (status ${res.status}): ${text.slice(0,120)}...`);
+  }
+  return res.json();
+}
+
+function statusBadge(status){
+  if(status === 'Accepted') return 'bg-success';
+  if(status === 'Cancelled') return 'bg-danger';
+  return 'bg-warning text-dark';
+}
+
+async function loadOrders(){
+  const list = document.querySelector('.order-list');
+  list.innerHTML = `<div class="text-muted">Loading...</div>`;
+  try{
+    const res = await fetch(ORDERS_LIST_URL, { cache:"no-store" });
+    const orders = await safeJson(res);
+
+    if(!orders.length){
+      list.innerHTML = `<div class="alert alert-info m-0">No orders yet</div>`;
+      return;
+    }
+
+    list.innerHTML = '';
+    for(const o of orders){
+      const itemsRes = await fetch(ORDER_ITEMS_URL(o.id), { cache:"no-store" });
+      const items = await safeJson(itemsRes);
+
+      const totalQty = items.reduce((s,i)=>s+i.qty,0);
+      const rows = items.map(it => `
+        <tr>
+          <td class="text-muted">#${it.menu_id ?? ''}</td>
+          <td>${it.name}</td>
+          <td class="text-center">${it.qty}</td>
+          <td class="text-end">${(it.price * it.qty).toFixed(2)}</td>
+        </tr>
+      `).join('');
+
+      const card = document.createElement('div');
+      card.className = 'order-box';
+      card.innerHTML = `
+        <h5 class="mb-1">
+          Order #${o.id} | Table : ${o.table_no} | ${totalQty} item
+          | <span class="badge ${statusBadge(o.status)}">${o.status || 'Pending'}</span>
+        </h5>
+        <small class="text-muted d-block mb-2">at ${o.created_at}</small>
+
+        <div class="table-responsive">
+          <table class="table mb-3 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th style="width:90px;">Menu ID</th>
+                <th>Item</th>
+                <th class="text-center" style="width:120px;">Qty</th>
+                <th class="text-end" style="width:140px;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+              <tr class="table-active">
+                <td></td>
+                <td><strong>Total</strong></td>
+                <td class="text-center"><strong>${totalQty}</strong></td>
+                <td class="text-end"><strong>${Number(o.total).toFixed(2)}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="d-flex gap-3">
+          <button class="btn btn-success flex-fill" data-act="accept" data-id="${o.id}" ${o.status==='Accepted'?'disabled':''}>
+            <i class="bi bi-check2-circle"></i> Accept
+          </button>
+          <button class="btn btn-danger flex-fill" data-act="cancel" data-id="${o.id}">
+            <i class="bi bi-x-circle"></i> Cancel
+          </button>
+        </div>
+      `;
+      list.appendChild(card);
+    }
+
+    // bind Accept / Cancel
+    list.querySelectorAll('button[data-act]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const id = btn.getAttribute('data-id');
+        const act = btn.getAttribute('data-act');
+
+        try{
+          if(act === 'accept'){
+            const r = await fetch(ORDER_STATUS_URL(id), {
+              method: 'PUT',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ status: 'Accepted' })
+            });
+            const j = await safeJson(r);
+            if(!j.success) throw new Error('Update failed');
+          }else{
+            if(!confirm('Delete this order?')) return;
+            const r = await fetch(ORDER_DELETE_URL(id), { method: 'DELETE' });
+            const ct = r.headers.get('content-type') || '';
+            const j = ct.includes('application/json') ? await r.json() : {};
+            if(!r.ok || j.success === false){
+              throw new Error(j.error || 'Delete failed');
+            }
+          }
+          await loadOrders();
+        }catch(e){
+          alert((act==='accept'?'Update':'Delete')+' failed: '+e.message);
+          console.error(e);
+        }
+      });
+    });
+
+  }catch(e){
+    document.querySelector('.order-list').innerHTML =
+      `<div class="alert alert-danger m-0">Error: ${e.message}</div>`;
+    console.error(e);
+  }
+}
+
+document.getElementById('btnRefresh').addEventListener('click', loadOrders);
+document.addEventListener('DOMContentLoaded', loadOrders);
+</script>
+
+<!-- auth script: shows username if logged in and adds logout -->
+<script>
+(function(){
+  const user = localStorage.getItem('ranUser');
+  if(user){
+    var nav = document.querySelector('.navbar .ms-auto');
+    if(nav){
+      if(!document.getElementById('ranUserBadge')){
+        const span = document.createElement('div');
+        span.id='ranUserBadge';
+        span.className='d-flex align-items-center gap-2';
+        span.innerHTML = '<span style="color:#fff;font-weight:700;">'+user+'</span> <button id="btnLogout" class="btn btn-sm btn-light">Logout</button>';
+        nav.prepend(span);
+        document.getElementById('btnLogout').addEventListener('click', ()=>{ localStorage.removeItem('ranUser'); window.location.href='index.html'; });
+      }
+    }
+  }
+})();
+
+// ✅ Added: universal logout handler (for both #btnLogoutTop and injected #btnLogout)
+document.addEventListener('click', (e)=>{
+  if(e.target && (e.target.id === 'btnLogoutTop' || e.target.id === 'btnLogout')){
+    sessionStorage.removeItem('ranUser');
+    localStorage.removeItem('ranUser');
+    window.location.href = 'index.html';
+  }
+});
+</script>
+</body>
+</html>

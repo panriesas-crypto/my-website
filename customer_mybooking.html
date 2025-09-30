@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My Booking • Customer</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <style>
+    body { background:#fff; }
+    .navbar-custom { background:#dc3545; color:#fff; }
+    .navbar-custom .brand { font-weight:800; font-size:1.6rem; color:#fff; text-decoration:none; }
+    .sidebar { background:#fef6e4; min-height:100vh; padding-top:1rem; }
+    .sidebar h6 { color:#c5a880; font-weight:700; margin-bottom:1rem; padding-left:1rem; }
+    .sidebar .nav-link { color:#000; font-weight:600; border-radius:.5rem; margin:.25rem .5rem; }
+    .sidebar .nav-link.active { background:#fde68a; color:#000; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-custom px-3">
+  <a href="customer_home.html" class="brand">Ran A Han</a>
+  <div class="ms-auto d-flex align-items-center gap-3" id="navRight"></div>
+</nav>
+
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12 col-md-3 col-lg-2 sidebar">
+      <h6>FEATURES</h6>
+      <nav class="nav flex-column">
+        <a class="nav-link " href="customer_home.html">Menu</a>
+        <a class="nav-link " href="customer_booking.html">Booking</a>
+        <a class="nav-link active" href="customer_mybooking.html">My Booking</a>
+      </nav>
+    </div>
+
+    <div class="col-12 col-md-9 col-lg-10 p-4">
+      <h2 class="mb-4">My Booking</h2>
+      <div id="bookingList" class="row g-3"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content p-3">
+      <h5>Edit Booking</h5>
+      <form id="editForm" class="mt-2">
+        <input type="hidden" name="id">
+        <div class="mb-2">
+          <label class="form-label">Date</label>
+          <input type="date" class="form-control" name="date" required>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Time</label>
+          <input type="time" class="form-control" name="time" required>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Seats</label>
+          <input type="number" class="form-control" name="people" min="1" required>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Comment</label>
+          <textarea class="form-control" name="comment"></textarea>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mt-3">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// ===== CONFIG
+const SERVER_ORIGIN = 'http://localhost:3000';
+
+// ===== Helpers
+function currentUserId(){
+  return localStorage.getItem('ranUser') || sessionStorage.getItem('ranUser') || 'guest';
+}
+
+async function fetchMyBookings(){
+  const uid = encodeURIComponent(currentUserId());
+  const resp = await fetch(`${SERVER_ORIGIN}/api/bookings/byUser/${uid}`);
+  if (!resp.ok) throw new Error('Cannot load bookings');
+  return await resp.json();
+}
+
+async function cancelBooking(id){
+  if(!confirm('Cancel this booking?')) return;
+  const resp = await fetch(`${SERVER_ORIGIN}/api/bookings/${id}`, { method:'DELETE' });
+  if(!resp.ok){
+    alert('Cancel failed');
+    return;
+  }
+  await renderMyBookings();
+  alert('Booking cancelled successfully!');
+}
+
+// (ตัวเลือก) Edit booking — ต้องมี PUT endpoint ใน server ถ้าจะใช้งานจริง
+const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+const editForm = document.getElementById('editForm');
+
+function openEdit(b){
+  editForm.id.value = b.id;
+  editForm.date.value = b.date;
+  editForm.date.readOnly = true;
+  editForm.time.value = b.time;
+  editForm.people.value = b.people;
+  editForm.comment.value = b.comment || '';
+  editModal.show();
+}
+
+// Open edit modal
+async function openEdit(id){
+  let res = await fetch(`${API_BASE}/menu/${id}`);
+  let item = await res.json();
+  let form = document.getElementById('editForm');
+  form.id.value = item.id;
+  form.englishName.value = item.englishName;
+  form.desc.value = item.desc || "";
+  form.type.value = item.type;
+  form.price.value = item.price;
+  form.image.value = item.image || "";
+  new bootstrap.Modal(document.getElementById('editModal')).show();
+}
+
+editForm.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const payload = {
+    time: editForm.time.value,
+    people: parseInt(editForm.people.value, 10),
+    comment: editForm.comment.value || "",
+    userId: getUserId()
+  };
+  if (!payload.time || !payload.people || payload.people < 1) {
+    alert('Please fill time and people (>=1).');
+    return;
+  }
+  const id = editForm.id.value;
+  const resp = await fetch(`${SERVER_ORIGIN}/api/bookings/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const out = await resp.json().catch(()=> ({}));
+  if (!resp.ok) return alert(out.error || 'Update failed');
+  editModal.hide();
+  await renderMyBookings();
+  alert('Updated!');
+});
+
+
+
+async function renderMyBookings(){
+  const container = document.getElementById('bookingList');
+  container.innerHTML = '<p class="text-muted">Loading...</p>';
+  try {
+    const bookings = await fetchMyBookings();
+    if(!bookings || bookings.length === 0){
+      container.innerHTML = `<p class="text-muted">No booking found.</p>`;
+      return;
+    }
+    container.innerHTML = '';
+    bookings.forEach(b=>{
+      container.innerHTML += `
+        <div class="col-md-6">
+          <div class="p-4 bg-light rounded-3 h-100 shadow-sm">
+            <div class="mb-2"><strong>Date :</strong> ${b.date}</div>
+            <div class="mb-2"><strong>Time :</strong> ${b.time}</div>
+            <div class="mb-2"><strong>Seats :</strong> ${b.people}</div>
+            <div class="mb-2"><strong>Table :</strong> ${b.table_id ?? b.tableId ?? '-'}</div>
+
+            <div class="mb-2"><strong>Status :</strong> ${b.status}</div>
+            ${b.comment ? `<div class="text-muted"><em>Comment: ${b.comment}</em></div>` : ""}
+            <div class="mt-3 d-flex flex-column gap-2">
+  ${b.status === 'Reserved' ? `<div><button class="btn btn-danger btn-sm" onclick="cancelBooking(${b.id})">Cancel</button></div>` : ''}
+  <small class="text-muted fst-italic">If you want to Edit, Please cancel your booking.</small>
+</div>
+          </div>
+        </div>
+      `;
+    });
+  } catch(e){
+    console.error(e);
+    container.innerHTML = `<p class="text-danger">Failed to load your bookings.</p>`;
+  }
+}
+
+// auth UI (เหมือนไฟล์เดิม)
+(function(){
+  const user = localStorage.getItem('ranUser');
+  if(user){
+    const nav = document.getElementById('navRight');
+    const btn = document.createElement('button');
+    btn.className="btn btn-sm btn-light";
+    btn.innerText="Logout";
+    btn.onclick=()=>{ localStorage.removeItem('ranUser'); window.location.href="index.html"; };
+    nav.appendChild(btn);
+  }
+})();
+document.addEventListener('DOMContentLoaded', renderMyBookings);
+</script>
+</body>
+</html>

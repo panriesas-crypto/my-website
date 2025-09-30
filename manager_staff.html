@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Staff Management • Manager</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <style>
+    body { background:#fff; }
+    .navbar-custom { background:#dc3545; color:#fff; }
+    .navbar-custom .brand { font-weight:800; font-size:1.6rem; color:#fff; text-decoration:none; }
+    .sidebar { background:#fef6e4; min-height:100vh; padding-top:1rem; }
+    .sidebar h6 { color:#c5a880; font-weight:700; margin-bottom:1rem; padding-left:1rem; }
+    .sidebar .nav-link { color:#000; font-weight:600; border-radius:.5rem; margin:.25rem .5rem; }
+    .sidebar .nav-link.active { background:#fde68a; color:#000; }
+    .user-info img { width:40px; height:40px; border-radius:50%; object-fit:cover; }
+    .staff-img { width:40px; height:40px; border-radius:50%; object-fit:cover; }
+  </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-custom px-3">
+  <a href="#" class="brand">Ran A Han</a>
+  <div class="ms-auto d-flex align-items-center gap-3">
+    <div class="user-info d-flex align-items-center gap-2">
+      <span>Username<br><small class="fw-normal">Manager</small></span>
+      <img src="https://via.placeholder.com/40" alt="User">
+    </div>
+    <button class="btn btn-sm btn-light"><i class="bi bi-bell-fill"></i></button>
+    <button class="btn btn-sm btn-light"><i class="bi bi-gear-fill"></i></button>
+    <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#adminModal">Admin</button>
+    <button class="btn btn-sm btn-light" id="btnLogout">Logout</button>
+  </div>
+</nav>
+
+<div class="container-fluid">
+  <div class="row">
+    <!-- Sidebar -->
+    <div class="col-12 col-md-3 col-lg-2 sidebar">
+      <h6>FEATURES</h6>
+      <nav class="nav flex-column">
+        <a class="nav-link" href="manager_stock.html">Stock</a>
+        <a class="nav-link" href="manager_menu.html">Menu</a>
+        <a class="nav-link active" href="manager_staff.html">Staff</a>
+        <a class="nav-link" href="manager_promotion.html">Promotion</a>
+      </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="col-12 col-md-9 col-lg-10 p-4">
+      <h2 class="mb-4">Staff Management</h2>
+      <div class="d-flex flex-wrap gap-2 mb-3">
+        <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#addModal">Add</button>
+        <!-- ปุ่มปฏิทิน -->
+        <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#calendarModal">
+          <i class="bi bi-calendar-event"></i>
+        </button>
+      </div>
+
+      <!-- Staff Table -->
+      <div class="table-responsive">
+        <table class="table table-hover align-middle" id="staffTable">
+          <thead class="table-light">
+            <tr>
+              <th>Profile</th>
+              <th>ID</th>
+              <th>First</th>
+              <th>Last</th>
+              <th>Email</th>
+              <th>Contact</th>
+              <th>Priority</th>
+              <th>Work Days</th>
+              <th>Shift Time</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Modal -->
+<div class="modal fade" id="addModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Add Staff</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="addForm">
+        <input name="staffId" class="form-control mb-2" placeholder="Staff ID" required>
+        <input name="fname" class="form-control mb-2" placeholder="First Name" required>
+        <input name="lname" class="form-control mb-2" placeholder="Last Name" required>
+        <input name="email" class="form-control mb-2" placeholder="Email">
+        <input name="contact" class="form-control mb-2" placeholder="Contact">
+        <select name="priority" class="form-select mb-2"><option>Manager</option><option>Staff</option></select>
+        <input name="image" class="form-control mb-2" placeholder="Profile Image URL">
+        <input name="workDays" class="form-control mb-2" placeholder="Work Days (Sun-Sat)">
+        <input name="shiftTime" class="form-control mb-2" placeholder="Shift Time (10:00-24:00)">
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-danger" id="saveAdd">Save</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Edit Staff</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <form id="editForm">
+        <input type="hidden" name="id">
+        <input name="fname" class="form-control mb-2" placeholder="First Name">
+        <input name="lname" class="form-control mb-2" placeholder="Last Name">
+        <input name="email" class="form-control mb-2" placeholder="Email">
+        <input name="contact" class="form-control mb-2" placeholder="Contact">
+        <select name="priority" class="form-select mb-2"><option>Manager</option><option>Staff</option></select>
+        <input name="image" class="form-control mb-2" placeholder="Profile Image URL">
+        <input name="workDays" class="form-control mb-2" placeholder="Work Days">
+        <input name="shiftTime" class="form-control mb-2" placeholder="Shift Time">
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      <button class="btn btn-warning" id="saveEdit">Update</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- Calendar Modal -->
+<div class="modal fade" id="calendarModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header">
+      <h5 class="modal-title"><i class="bi bi-calendar-event"></i> Staff Work Schedule</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+      <div class="table-responsive">
+        <table class="table table-bordered align-middle text-center" id="calendarTable">
+          <thead class="table-light">
+            <tr><th>Staff</th><th>Work Days</th><th>Shift Time</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- Admin Modal -->
+<div class="modal fade" id="adminModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content p-3">
+      <h5 class="mb-3">Manage Users</h5>
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Role</th>
+            <th>Table No</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="userTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API_BASE = "http://localhost:3000/api";
+
+// ---- STAFF ----
+async function renderStaff(){
+  let res = await fetch(`${API_BASE}/staff`);
+  let staff = await res.json();
+  let tbody = document.querySelector('#staffTable tbody');
+  tbody.innerHTML = '';
+  staff.forEach(s=>{
+    tbody.innerHTML += `
+      <tr>
+        <td><img src="${s.image||'https://via.placeholder.com/40'}" class="staff-img"></td>
+        <td>${s.staffId}</td><td>${s.fname}</td><td>${s.lname}</td>
+        <td>${s.email||''}</td><td>${s.contact||''}</td><td>${s.priority}</td>
+        <td>${s.workDays||'-'}</td><td>${s.shiftTime||'-'}</td>
+        <td>
+          <button class="btn btn-warning btn-sm" onclick="editStaff(${s.id})">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteStaff(${s.id})">Delete</button>
+        </td>
+      </tr>`;
+  });
+}
+
+document.getElementById('saveAdd').addEventListener('click', async ()=>{
+  let data = Object.fromEntries(new FormData(document.getElementById('addForm')));
+  let res = await fetch(`${API_BASE}/staff`, {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify(data)
+  });
+  let r = await res.json();
+  if(r.success){ renderStaff(); document.getElementById('addForm').reset();
+    bootstrap.Modal.getInstance(document.getElementById('addModal')).hide(); }
+});
+
+// Edit
+async function editStaff(id){
+  let res = await fetch(`${API_BASE}/staff/${id}`);
+  let s = await res.json();
+  let form = document.getElementById('editForm');
+  form.id.value = s.id; form.fname.value = s.fname; form.lname.value = s.lname;
+  form.email.value = s.email; form.contact.value = s.contact;
+  form.priority.value = s.priority; form.image.value = s.image||"";
+  form.workDays.value = s.workDays||""; form.shiftTime.value = s.shiftTime||"";
+  new bootstrap.Modal(document.getElementById('editModal')).show();
+}
+document.getElementById('saveEdit').addEventListener('click', async ()=>{
+  let data = Object.fromEntries(new FormData(document.getElementById('editForm')));
+  await fetch(`${API_BASE}/staff/${data.id}`, {
+    method:"PUT", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify(data)
+  });
+  renderStaff();
+  bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+});
+
+// Delete
+async function deleteStaff(id){
+  await fetch(`${API_BASE}/staff/${id}`, {method:"DELETE"});
+  renderStaff();
+}
+
+// ---- Calendar ----
+async function renderCalendar(){
+  let res = await fetch(`${API_BASE}/staff`);
+  let staff = await res.json();
+  let tbody = document.querySelector('#calendarTable tbody');
+  tbody.innerHTML = '';
+  staff.forEach(s=>{
+    tbody.innerHTML += `
+      <tr>
+        <td><strong>${s.fname} ${s.lname}</strong></td>
+        <td>${s.workDays||'-'}</td>
+        <td>${s.shiftTime||'-'}</td>
+      </tr>`;
+  });
+}
+document.getElementById('calendarModal').addEventListener('show.bs.modal', renderCalendar);
+
+// ---- USERS (Admin) ----
+async function renderUsers(){
+  let res = await fetch(`${API_BASE}/users`);
+  let users = await res.json();
+  let tbody = document.getElementById('userTable');
+  tbody.innerHTML = '';
+
+  users.forEach(u=>{
+    tbody.innerHTML += `
+      <tr>
+        <td>${u.username}</td>
+        <td>
+          <select class="form-select form-select-sm" onchange="changeRole(${u.id}, this.value)">
+            <option value="customer" ${u.role==='customer'?'selected':''}>customer</option>
+            <option value="staff" ${u.role==='staff'?'selected':''}>staff</option>
+            <option value="manager" ${u.role==='manager'?'selected':''}>manager</option>
+            <option value="moniter" ${u.role==='moniter'?'selected':''}>moniter</option>
+          </select>
+        </td>
+        <td>
+          ${u.role==='moniter'
+            ? `<input type="text" value="${u.table_no||''}" 
+                     onchange="updateTableNo(${u.id}, this.value)" 
+                     class="form-control form-control-sm" style="width:100px;">`
+            : '-'}
+        </td>
+        <td>
+          <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">Delete</button>
+        </td>
+      </tr>`;
+  });
+}
+
+async function updateTableNo(id, table_no){
+  await fetch(`${API_BASE}/users/${id}/table`, {
+    method:"PUT",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({table_no})
+  });
+}
+
+
+async function changeRole(id,newRole){
+  await fetch(`${API_BASE}/users/${id}/role`,{
+    method:"PUT", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({role:newRole})
+  });
+}
+async function deleteUser(id){
+  await fetch(`${API_BASE}/users/${id}`, {method:"DELETE"});
+  renderUsers();
+}
+
+// ---- Logout ----
+document.getElementById("btnLogout").addEventListener("click", ()=>{
+  sessionStorage.removeItem("ranUser");
+  window.location.href="index.html";
+});
+
+document.addEventListener('DOMContentLoaded', renderStaff);
+document.getElementById('adminModal').addEventListener('show.bs.modal', renderUsers);
+</script>
+</body>
+</html>
